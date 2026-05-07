@@ -116,7 +116,7 @@ export default function EditForm({ post, users }: { post: any; users: { id: stri
       {status === 'timed' && (
         <div>
           <label style={labelStyle}>공개 예약 시각 *</label>
-          <input type="datetime-local" name="publishAt" defaultValue={post.publishAt?.slice(0, 16)} style={inputStyle} />
+          <input type="datetime-local" name="publishAt" defaultValue={post.publishAt?.slice(0, 16)} style={{ ...inputStyle, width: '100%', cursor: 'pointer' }} />
         </div>
       )}
 
