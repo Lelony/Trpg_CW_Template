@@ -2,9 +2,13 @@
 
 > TRPG 스포일러 방지 게시판 — Next.js + GitHub API 기반, DB 없이 운영 가능한 소규모 커뮤니티 게시판입니다.
 
-> 본래 개인 사용용으로 만들어진 프로젝트로, 사용은 자유이나 문의는 받지 않습니다! 개선 사항이 필요할 경우 클론 및 포크로 가져가서 수정해 사용해주시면 됩니다.
+---
+## 라이선스
 
-> 원본 및 수정본을 재배포하거나 상업적으로 이용하는 것을 금합니다.
+이 프로젝트는 개인 및 소규모 커뮤니티 용도로 자유롭게 사용할 수 있습니다.  
+원본 레포지토리의 코드를 그대로 판매하거나 상업적으로 이용하는 것은 허용되지 않습니다.
+
+> 본래 개인 사용용으로 만들어진 프로젝트로, 사용은 자유이나 문의는 받지 않습니다! 개선 사항이 필요할 경우 클론 및 포크로 가져가서 수정해 사용해주시면 됩니다.
 
 > 상시 업데이트가 진행되는 레포지토리로, 해당 레포지토리를 그대로 vercel에 배포하는 것은 추천드리지 않습니다. 복사본으로 가져가 사용해주세요.
 
@@ -12,11 +16,15 @@
 
 ## 이 프로젝트에 대해
 
-이 프로젝트는 원래 **시노비가미** TRPG 캠페인을 위해 만들어졌지만, 어떤 TRPG 시스템이나 소규모 커뮤니티에도 자유롭게 활용할 수 있도록 설계되어 있어요.
+이 프로젝트는 원래 **시노비가미** TRPG 캠페인을 위해 만들어졌지만, 어떤 TRPG 시스템이나 소규모 커뮤니티에도 자유롭게 활용할 수 있도록 설계되어 있습니다.
 
-사이트 이름, 설명, 색상 테마 등 대부분의 요소를 **관리자 패널에서 코드 수정 없이** 변경할 수 있으니, 본인의 캠페인이나 모임에 맞게 마음껏 커스터마이징해서 사용하세요!
+사이트 이름, 설명, 색상 테마 등 대부분의 요소를 **관리자 패널에서 코드 수정 없이** 변경할 수 있으니, 본인의 캠페인이나 모임에 맞게 커스터마이징해서 사용해 주세요.
 
-> 예시: 던전앤드래곤 원정대 일지 / 클트오브비서스 세션 기록 / 어둠의 심연 탐험대 게시판 ...
+> 예시: 던전앤드래곤 원정대 일지 / COC 세션 기록 / 어둠의 심연 탐험대 게시판 ...
+
+> ⚠️ 이 레포지토리는 직접 수정을 받지 않습니다.  
+> 사용하려면 아래 방법 중 하나로 본인 레포를 만들어 사용하세요.  
+> PR이나 Issue는 별도로 검토하지 않습니다.
 
 ---
 
@@ -25,8 +33,9 @@
 - [주요 기능](#주요-기능)
 - [기술 스택](#기술-스택)
 - [시작하기](#시작하기)
-  - [방법 A — 코드 없이 브라우저에서 바로 배포](#방법-a--코드-없이-브라우저에서-바로-배포-추천)
-  - [방법 B — 로컬 개발 환경에서 배포](#방법-b--로컬-개발-환경에서-배포)
+  - [방법 A — Vercel Deploy 버튼으로 원클릭 배포](#방법-a--vercel-deploy-버튼으로-원클릭-배포-가장-간단)
+  - [방법 B — 브라우저에서 단계별 배포](#방법-b--브라우저에서-단계별-배포)
+  - [방법 C — 로컬 개발 환경에서 배포](#방법-c--로컬-개발-환경에서-배포)
 - [초기 데이터 파일 생성](#초기-데이터-파일-생성)
 - [환경변수 목록](#환경변수-목록)
 - [관리자 설정 가이드](#관리자-설정-가이드)
@@ -72,43 +81,90 @@
 > ⚠️ 데이터 레포는 반드시 **Private**으로 설정하세요.  
 > 유저 비밀번호 해시, 게시글 내용 등 민감한 정보가 저장됩니다.
 
+**어떤 방법을 선택할까요?**
+
+| | 방법 A | 방법 B | 방법 C |
+|---|---|---|---|
+| 난이도 | ⭐ 가장 쉬움 | ⭐⭐ 보통 | ⭐⭐⭐ 개발자용 |
+| 터미널 필요 | ❌ | ❌ | ✅ |
+| 코드 수정 가능 | ❌ | ❌ | ✅ |
+
 ---
 
-### 방법 A — 코드 없이 브라우저에서 바로 배포 (추천)
+### 방법 A — Vercel Deploy 버튼으로 원클릭 배포 (가장 간단)
 
-터미널이나 개발 환경 없이 GitHub와 Vercel 웹사이트만으로 배포할 수 있어요.
+아래 버튼 하나로 **레포 복사 + Vercel 배포가 동시에** 진행돼요.
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Lelony/Trpg_CW_Template&env=GITHUB_PAT,GITHUB_REPO_OWNER,GITHUB_REPO_NAME,NEXTAUTH_SECRET,NEXTAUTH_URL&envDescription=환경변수%20설정%20가이드를%20참고하세요&envLink=https://github.com/Lelony/Trpg_CW_Template%23환경변수-목록)
+
+> ⚠️ 버튼을 클릭하기 전에 **데이터 레포 생성**, **초기 파일 생성**, **GitHub PAT 발급**을 먼저 완료해주세요.
+
+#### 사전 준비
+
+**① 데이터 레포 생성**
+1. GitHub 우측 상단 **+** → **New repository**
+2. 이름 입력 (예: `my-trpg-board-data`), **Private** 선택 후 생성
+3. 아래 [초기 데이터 파일 생성](#초기-데이터-파일-생성) 섹션을 참고해 파일 추가
+
+**② GitHub PAT 발급**
+1. GitHub → 프로필 → **Settings → Developer settings**
+2. **Personal access tokens → Tokens (classic)**
+3. **Generate new token (classic)** → `repo` 스코프 체크 후 생성
+4. 발급된 토큰 복사 (`ghp_...`)
+
+#### Deploy 버튼 클릭 후 진행
+
+1. GitHub 계정으로 Vercel 로그인
+2. 본인 GitHub에 복사될 **레포 이름 입력** (예: `my-trpg-board`)
+3. **환경변수 5개 입력**
+
+| 변수명 | 값 |
+|---|---|
+| `GITHUB_PAT` | 발급한 PAT 토큰 |
+| `GITHUB_REPO_OWNER` | 본인 GitHub 아이디 |
+| `GITHUB_REPO_NAME` | 데이터 레포 이름 |
+| `NEXTAUTH_SECRET` | 아무 문자나 32자 이상 길게 입력 |
+| `NEXTAUTH_URL` | 일단 `https://temp.vercel.app` 입력 |
+
+4. **Deploy** 클릭 → 자동 배포 진행
+5. 배포 완료 후 생성된 실제 URL 확인
+6. Vercel → **Settings → Environment Variables** → `NEXTAUTH_URL`을 실제 URL로 수정
+7. **Deployments → 최근 배포 → 점 세 개 → Redeploy**
+
+---
+
+### 방법 B — 브라우저에서 단계별 배포
+
+터미널 없이 GitHub와 Vercel 웹사이트만으로 배포해요.
 
 #### 1단계 — 코드 레포 복사
 
 1. 이 레포 상단의 **Use this template** 버튼 클릭
 2. **Create a new repository** 선택
 3. 레포 이름 입력 (예: `my-trpg-board`)
-4. Public 또는 Private 선택 후 **Create repository** 클릭
+4. Public 또는 Private 선택 후 **Create repository**
 
 #### 2단계 — 데이터 레포 생성
 
-1. GitHub 우측 상단 **+** → **New repository** 클릭
-2. 레포 이름 입력 (예: `my-trpg-board-data`)
-3. **Private** 선택 (필수)
-4. **Create repository** 클릭
+1. GitHub 우측 상단 **+** → **New repository**
+2. 이름 입력 (예: `my-trpg-board-data`)
+3. **Private** 선택 후 **Create repository**
 
-#### 3단계 — 데이터 레포에 초기 파일 생성
+#### 3단계 — 초기 파일 생성
 
-아래 [초기 데이터 파일 생성](#초기-데이터-파일-생성) 섹션을 참고하여 GitHub 웹에서 직접 파일을 만들어주세요.
+아래 [초기 데이터 파일 생성](#초기-데이터-파일-생성) 섹션을 참고해 데이터 레포에 파일을 추가하세요.
 
 #### 4단계 — GitHub PAT 발급
 
-1. GitHub → 우측 프로필 → **Settings**
-2. 좌측 하단 **Developer settings**
-3. **Personal access tokens → Tokens (classic)**
-4. **Generate new token (classic)** 클릭
-5. `repo` 스코프 체크 후 생성
-6. 발급된 토큰 복사해두기 (`ghp_...`)
+1. GitHub → 프로필 → **Settings → Developer settings**
+2. **Personal access tokens → Tokens (classic)**
+3. **Generate new token (classic)** → `repo` 스코프 체크 후 생성
+4. 발급된 토큰 복사 (`ghp_...`)
 
 #### 5단계 — Vercel에서 배포
 
-1. [vercel.com](https://vercel.com) 접속 후 GitHub 계정으로 로그인
-2. **Add New → Project** 클릭
+1. [vercel.com](https://vercel.com) → GitHub 계정으로 로그인
+2. **Add New → Project**
 3. 1단계에서 만든 **코드 레포** 선택 후 **Import**
 4. **Environment Variables** 섹션에서 아래 항목 추가
 
@@ -116,42 +172,32 @@
 |---|---|
 | `GITHUB_PAT` | 4단계에서 복사한 토큰 |
 | `GITHUB_REPO_OWNER` | 본인 GitHub 아이디 |
-| `GITHUB_REPO_NAME` | 데이터 레포 이름 (예: `my-trpg-board-data`) |
-| `NEXTAUTH_SECRET` | 랜덤 문자열 32자 이상 (아무 문자나 길게 입력) |
-| `NEXTAUTH_URL` | 잠시 후 확인할 배포 URL (일단 `https://temp.vercel.app` 입력) |
+| `GITHUB_REPO_NAME` | 데이터 레포 이름 |
+| `NEXTAUTH_SECRET` | 아무 문자나 32자 이상 길게 입력 |
+| `NEXTAUTH_URL` | 일단 `https://temp.vercel.app` 입력 |
 
 5. **Deploy** 클릭
-6. 배포 완료 후 생성된 URL 확인 (예: `https://my-trpg-board.vercel.app`)
-7. Vercel → **Settings → Environment Variables** → `NEXTAUTH_URL` 값을 실제 배포 URL로 수정
-8. **Deployments → 최근 배포 → 우측 점 세 개 → Redeploy**
-
-배포 완료! 이제 사이트에 접속할 수 있어요.
+6. 배포 완료 후 생성된 실제 URL 확인
+7. Vercel → **Settings → Environment Variables** → `NEXTAUTH_URL`을 실제 URL로 수정
+8. **Deployments → 최근 배포 → 점 세 개 → Redeploy**
 
 ---
 
-### 방법 B — 로컬 개발 환경에서 배포
+### 방법 C — 로컬 개발 환경에서 배포
 
-코드를 직접 수정하거나 로컬에서 테스트하고 싶을 때 사용해요.
+코드를 직접 수정하거나 로컬에서 테스트하고 싶을 때 사용해요. Node.js 18 이상이 필요합니다.
 
 #### 1단계 — 레포 준비
 
-위 방법 A의 1~4단계와 동일하게 진행하세요.  
-그 다음 아래 명령어로 로컬에 clone해주세요.
+방법 B의 1~4단계와 동일하게 진행한 뒤, 아래 명령어로 로컬에 clone하세요.
 
 ```bash
 git clone https://github.com/본인계정/코드레포이름.git
 cd 코드레포이름
-```
-
-#### 2단계 — 패키지 설치
-
-Node.js 18 이상이 필요합니다.
-
-```bash
 npm install
 ```
 
-#### 3단계 — 환경변수 파일 생성
+#### 2단계 — 환경변수 파일 생성
 
 프로젝트 루트에 `.env.local` 파일을 생성하세요.
 
@@ -168,17 +214,13 @@ NEXTAUTH_URL=http://localhost:3000
 > openssl rand -base64 32
 > ```
 
-#### 4단계 — 로컬 실행
+#### 3단계 — 로컬 실행 및 배포
 
 ```bash
+# 로컬 실행
 npm run dev
-```
 
-`http://localhost:3000` 에서 확인하세요.
-
-#### 5단계 — Vercel 배포
-
-```bash
+# Vercel 배포
 npm install -g vercel
 vercel
 ```
@@ -251,7 +293,7 @@ GitHub 웹에서 **Add file → Create new file**로 만들 수 있어요.
 ### `content/posts/.gitkeep`
 
 빈 파일을 생성해 폴더를 유지합니다.  
-파일명에 `content/posts/.gitkeep` 을 입력하면 폴더가 자동 생성돼요. 내용은 비워두세요.
+파일명에 `content/posts/.gitkeep`을 입력하면 폴더가 자동 생성돼요. 내용은 비워두세요.
 
 ---
 
@@ -265,7 +307,8 @@ GitHub 웹에서 **Add file → Create new file**로 만들 수 있어요.
 | `NEXTAUTH_SECRET` | JWT 서명용 비밀키 (32자 이상) | `openssl rand -base64 32` 결과 |
 | `NEXTAUTH_URL` | 배포된 앱의 URL | `https://my-trpg-board.vercel.app` |
 
-> ⚠️ `.env.local` 파일은 절대 GitHub에 올리지 마세요. `.gitignore`에 기본 포함되어 있습니다.
+> ⚠️ `.env.local` 파일은 절대 GitHub에 올리지 마세요. `.gitignore`에 기본 포함되어 있습니다.  
+> ⚠️ 여러 사람이 같은 코드 레포를 사용하더라도 환경변수 5개는 반드시 각자 따로 설정해야 합니다.
 
 ---
 
@@ -325,10 +368,3 @@ GitHub 웹에서 **Add file → Create new file**로 만들 수 있어요.
 - 데이터 레포는 반드시 **Private**으로 유지하세요.
 - `GITHUB_PAT`는 절대 외부에 노출하지 마세요.
 - 동시에 여러 명이 같은 게시글에 댓글을 작성할 경우 드물게 충돌이 발생할 수 있습니다. (SHA 기반 낙관적 동시성 제어로 최소화되어 있습니다.)
-
----
-
-## 라이선스
-
-이 프로젝트는 개인 및 소규모 커뮤니티 용도로 자유롭게 사용할 수 있습니다.  
-원본 레포지토리의 코드를 그대로 판매하거나 상업적으로 이용하는 것은 허용되지 않습니다.
