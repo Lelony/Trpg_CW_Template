@@ -117,7 +117,7 @@ export default function PostForm({ users }: { users: { id: string; name: string 
       {status === 'timed' && (
         <div>
           <label style={labelStyle}>공개 예약 시각 *</label>
-          <input type="datetime-local" name="publishAt" required style={inputStyle} />
+          <input type="datetime-local" name="publishAt" required style={{ ...inputStyle, width: '100%', cursor: 'pointer' }} />
         </div>
       )}
 
