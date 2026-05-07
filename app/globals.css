@@ -85,13 +85,13 @@ body {
   box-shadow: 0 1px 0 #8b1a1a22;
 }
 
-/* SNS 전용 — 헤더 깔끔한 그림자 */
+/* 라이트모드 */
 [data-theme="sns"] .site-header {
   border-bottom: 1px solid #e2e8f0;
   box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
 
-/* 시노비 전용 — 카드 왼쪽 붉은 accent 라인 */
+/* 다크모드 & 특정 컨셉 모드 */
 [data-theme="shinobi"] .post-card {
   border-left: 2px solid #2a2420;
   transition: border-color 0.2s, border-left-color 0.2s;
@@ -100,4 +100,14 @@ body {
 [data-theme="shinobi"] .post-card:hover {
   border-color: #2a2420 !important;
   border-left-color: #c0392b !important;
+}
+
+/* globals.css 맨 아래에 추가 */
+input[type="datetime-local"] {
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+[data-theme="sns"] input[type="datetime-local"] {
+  color-scheme: light;
 }
