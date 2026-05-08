@@ -111,7 +111,7 @@ export default function PostForm({ users }: { users: { id: string; name: string 
               <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{s.desc}</span>
             </label>
           ))}
-        </div>
+        </div> 
       </div>
 
       {status === 'timed' && (

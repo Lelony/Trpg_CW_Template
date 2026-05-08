@@ -14,15 +14,22 @@ export function generatePostId(): string {
 }
 
 // 파일 읽기 (Base64 디코딩 포함)
-export async function getFile(path: string) {
-  try {
-    const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path });
-    if (Array.isArray(data) || data.type !== 'file') throw new Error('Not a file');
-    const content = Buffer.from(data.content, 'base64').toString('utf-8');
-    return { content, sha: data.sha };
-  } catch (err: any) {
-    if (err.status === 404) return null;
-    throw err;
+// lib/github.ts - getFile 함수 교체
+export async function getFile(path: string, retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const { data } = await octokit.repos.getContent({ owner: OWNER, repo: REPO, path });
+      if (Array.isArray(data) || data.type !== 'file') throw new Error('Not a file');
+      const content = Buffer.from(data.content, 'base64').toString('utf-8');
+      return { content, sha: data.sha };
+    } catch (err: any) {
+      if (err.status === 404) return null; // 파일 없음 → 재시도 불필요
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 500 * (i + 1))); // 0.5초, 1초 간격으로 재시도
+        continue;
+      }
+      throw err;
+    }
   }
 }
 
@@ -157,11 +164,14 @@ export async function deleteComment(postId: string, commentId: string, userId: s
   );
 }
 
-// lib/github.ts - getUnreadComments 함수 교체
 export async function getUnreadComments(userId: string, lastChecked: string) {
+  // lastChecked가 너무 오래됐으면 최근 7일로 제한
+  const checkFrom = new Date(lastChecked);
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const effectiveFrom = checkFrom < sevenDaysAgo ? sevenDaysAgo : checkFrom;
+
   const paths = await listFiles('content/posts');
 
-  // 유저 목록 로드 (이름 → id 매핑용)
   const usersFile = await getFile('data/users.json');
   const users: any[] = usersFile ? JSON.parse(usersFile.content) : [];
   const nameToId = new Map(users.map((u) => [u.name, u.id]));
@@ -176,82 +186,86 @@ export async function getUnreadComments(userId: string, lastChecked: string) {
     type: 'comment' | 'reply' | 'mention';
   }[] = [];
 
+  // 병렬 처리로 속도 개선
   await Promise.all(
     paths.map(async (path) => {
-      const file = await getFile(path);
-      if (!file) return;
-      const post = JSON.parse(file.content);
+      try {
+        const file = await getFile(path);
+        if (!file) return;
+        const post = JSON.parse(file.content);
 
-      (post.comments ?? []).forEach((comment: any) => {
-        // 1. 내 게시글에 달린 새 댓글 (본인 제외)
-        if (
-          post.authorId === userId &&
-          comment.authorId !== userId &&
-          new Date(comment.createdAt) > new Date(lastChecked)
-        ) {
-          unread.push({
-            postId:     post.id,
-            postTitle:  post.title,
-            commentId:  comment.id,
-            authorName: comment.authorName,
-            content:    comment.content,
-            createdAt:  comment.createdAt,
-            type:       'comment',
-          });
-        }
+        // 댓글이 없으면 스킵
+        if (!post.comments?.length) return;
 
-        // 2. 내 댓글에 달린 새 답글 (본인 제외)
-        if (comment.authorId === userId) {
-          (comment.replies ?? []).forEach((reply: any) => {
-            if (
-              reply.authorId !== userId &&
-              new Date(reply.createdAt) > new Date(lastChecked)
-            ) {
-              unread.push({
-                postId:     post.id,
-                postTitle:  post.title,
-                commentId:  comment.id,
-                authorName: reply.authorName,
-                content:    reply.content,
-                createdAt:  reply.createdAt,
-                type:       'reply',
-              });
-            }
-          });
-        }
+        // 가장 최근 댓글이 effectiveFrom보다 오래됐으면 스킵
+        const latestComment = post.comments[post.comments.length - 1];
+        if (new Date(latestComment.createdAt) < effectiveFrom) return;
 
-        // 3. 답글에서 @이름으로 멘션된 경우
-        (comment.replies ?? []).forEach((reply: any) => {
-          if (reply.authorId === userId) return; // 본인이 쓴 답글은 제외
-
-          const match = reply.content.match(/^@(\S+)/);
-          if (!match) return;
-
-          const mentionedName = match[1];
-          const mentionedId   = nameToId.get(mentionedName);
-
+        (post.comments ?? []).forEach((comment: any) => {
           if (
-            mentionedId === userId &&
-            new Date(reply.createdAt) > new Date(lastChecked)
+            post.authorId === userId &&
+            comment.authorId !== userId &&
+            new Date(comment.createdAt) > effectiveFrom
           ) {
-            // 이미 내 댓글에 달린 답글로 추가된 경우 중복 방지
-            const alreadyAdded = unread.some(
-              (n) => n.commentId === comment.id && n.createdAt === reply.createdAt
-            );
-            if (!alreadyAdded) {
-              unread.push({
-                postId:     post.id,
-                postTitle:  post.title,
-                commentId:  comment.id,
-                authorName: reply.authorName,
-                content:    reply.content,
-                createdAt:  reply.createdAt,
-                type:       'mention',
-              });
-            }
+            unread.push({
+              postId:     post.id,
+              postTitle:  post.title,
+              commentId:  comment.id,
+              authorName: comment.authorName,
+              content:    comment.content,
+              createdAt:  comment.createdAt,
+              type:       'comment',
+            });
           }
+
+          if (comment.authorId === userId) {
+            (comment.replies ?? []).forEach((reply: any) => {
+              if (
+                reply.authorId !== userId &&
+                new Date(reply.createdAt) > effectiveFrom
+              ) {
+                unread.push({
+                  postId:     post.id,
+                  postTitle:  post.title,
+                  commentId:  comment.id,
+                  authorName: reply.authorName,
+                  content:    reply.content,
+                  createdAt:  reply.createdAt,
+                  type:       'reply',
+                });
+              }
+            });
+          }
+
+          (comment.replies ?? []).forEach((reply: any) => {
+            if (reply.authorId === userId) return;
+            const match = reply.content.match(/^@(\S+)/);
+            if (!match) return;
+            const mentionedId = nameToId.get(match[1]);
+            if (
+              mentionedId === userId &&
+              new Date(reply.createdAt) > effectiveFrom
+            ) {
+              const alreadyAdded = unread.some(
+                (n) => n.commentId === comment.id && n.createdAt === reply.createdAt
+              );
+              if (!alreadyAdded) {
+                unread.push({
+                  postId:     post.id,
+                  postTitle:  post.title,
+                  commentId:  comment.id,
+                  authorName: reply.authorName,
+                  content:    reply.content,
+                  createdAt:  reply.createdAt,
+                  type:       'mention',
+                });
+              }
+            }
+          });
         });
-      });
+      } catch {
+        // 개별 파일 오류는 무시
+      }
     }),
   );
 
@@ -259,7 +273,7 @@ export async function getUnreadComments(userId: string, lastChecked: string) {
     new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 }
-// lib/github.ts 맨 아래에 추가
+
 
 export async function getSettings() {
   const file = await getFile('data/settings.json');
@@ -324,5 +338,138 @@ export async function deleteReply(postId: string, commentId: string, replyId: st
     JSON.stringify(post, null, 2),
     file.sha,
     `comment: delete reply from "${post.title}"`,
+  );
+}
+
+// lib/github.ts 맨 아래에 추가
+
+export async function toggleReaction(postId: string, userId: string, emoji: string) {
+  const file = await getFile(`content/posts/${postId}.json`);
+  if (!file) throw new Error('게시글을 찾을 수 없습니다.');
+
+  const post = JSON.parse(file.content);
+  if (!post.reactions) post.reactions = {};
+
+  // 각 이모지별로 userId 배열 관리
+  // { '👍': ['user1', 'user2'], '❤️': ['user3'] }
+  // toggleReaction 함수 안의 EMOJIS 배열 교체
+const EMOJIS = ['👍', '❤️', '😮', '😂', '😢', '😡', '🔥', '👀', '🎉', '💀'];
+
+  // 현재 내가 누른 이모지 찾기
+  const currentEmoji = EMOJIS.find((e) => post.reactions[e]?.includes(userId));
+
+  // 같은 걸 다시 누르면 취소
+  if (currentEmoji === emoji) {
+    post.reactions[emoji] = post.reactions[emoji].filter((id: string) => id !== userId);
+  } else {
+    // 기존 리액션 제거
+    if (currentEmoji) {
+      post.reactions[currentEmoji] = post.reactions[currentEmoji].filter((id: string) => id !== userId);
+    }
+    // 새 리액션 추가
+    if (!post.reactions[emoji]) post.reactions[emoji] = [];
+    post.reactions[emoji].push(userId);
+  }
+
+  await updateFile(
+    `content/posts/${postId}.json`,
+    JSON.stringify(post, null, 2),
+    file.sha,
+    `reaction: ${userId} reacted ${emoji} to "${post.title}"`,
+  );
+
+  return post.reactions;
+}
+
+// lib/github.ts 맨 아래에 추가
+
+const REACTION_EMOJIS = ['👍', '❤️', '😮', '😂', '😢', '😡', '🔥', '👀', '🎉', '💀'];
+
+export async function toggleCommentReaction(
+  postId: string,
+  commentId: string,
+  userId: string,
+  emoji: string,
+  replyId?: string,
+) {
+  const file = await getFile(`content/posts/${postId}.json`);
+  if (!file) throw new Error('게시글을 찾을 수 없습니다.');
+
+  const post = JSON.parse(file.content);
+  const comment = post.comments?.find((c: any) => c.id === commentId);
+  if (!comment) throw new Error('댓글을 찾을 수 없습니다.');
+
+  // 대댓글 리액션인지 댓글 리액션인지 구분
+  const target = replyId
+    ? comment.replies?.find((r: any) => r.id === replyId)
+    : comment;
+
+  if (!target) throw new Error('대댓글을 찾을 수 없습니다.');
+  if (!target.reactions) target.reactions = {};
+
+  const currentEmoji = REACTION_EMOJIS.find((e) => target.reactions[e]?.includes(userId));
+
+  if (currentEmoji === emoji) {
+    target.reactions[emoji] = target.reactions[emoji].filter((id: string) => id !== userId);
+  } else {
+    if (currentEmoji) {
+      target.reactions[currentEmoji] = target.reactions[currentEmoji].filter((id: string) => id !== userId);
+    }
+    if (!target.reactions[emoji]) target.reactions[emoji] = [];
+    target.reactions[emoji].push(userId);
+  }
+
+  await updateFile(
+    `content/posts/${postId}.json`,
+    JSON.stringify(post, null, 2),
+    file.sha,
+    `reaction: ${userId} reacted to comment in "${post.title}"`,
+  );
+
+  return target.reactions;
+}
+
+// lib/github.ts 맨 아래에 추가
+
+export async function editComment(postId: string, commentId: string, content: string, userId: string) {
+  const file = await getFile(`content/posts/${postId}.json`);
+  if (!file) throw new Error('게시글을 찾을 수 없습니다.');
+
+  const post = JSON.parse(file.content);
+  const comment = post.comments?.find((c: any) => c.id === commentId);
+  if (!comment) throw new Error('댓글을 찾을 수 없습니다.');
+  if (comment.authorId !== userId) throw new Error('수정 권한이 없습니다.');
+
+  comment.content   = content;
+  comment.updatedAt = new Date().toISOString();
+
+  await updateFile(
+    `content/posts/${postId}.json`,
+    JSON.stringify(post, null, 2),
+    file.sha,
+    `comment: edit comment in "${post.title}" by ${userId}`,
+  );
+}
+
+export async function editReply(postId: string, commentId: string, replyId: string, content: string, userId: string) {
+  const file = await getFile(`content/posts/${postId}.json`);
+  if (!file) throw new Error('게시글을 찾을 수 없습니다.');
+
+  const post    = JSON.parse(file.content);
+  const comment = post.comments?.find((c: any) => c.id === commentId);
+  if (!comment) throw new Error('댓글을 찾을 수 없습니다.');
+
+  const reply = comment.replies?.find((r: any) => r.id === replyId);
+  if (!reply) throw new Error('답글을 찾을 수 없습니다.');
+  if (reply.authorId !== userId) throw new Error('수정 권한이 없습니다.');
+
+  reply.content   = content;
+  reply.updatedAt = new Date().toISOString();
+
+  await updateFile(
+    `content/posts/${postId}.json`,
+    JSON.stringify(post, null, 2),
+    file.sha,
+    `comment: edit reply in "${post.title}" by ${userId}`,
   );
 }

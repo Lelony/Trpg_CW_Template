@@ -6,8 +6,10 @@ import { canViewContent, canEditPost } from '@/lib/permissions';
 import SpoilerMask from '@/components/SpoilerMask';
 import DeleteButton from '@/components/DeleteButton';
 import CommentSection from '@/components/CommentSection';
+import ReactionBar from '@/components/ReactionBar';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 export default async function PostDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -60,12 +62,21 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
         </div>
 
         {isVisible ? (
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--text)', fontSize: '15px' }}>
-            {post.content}
-          </div>
-        ) : (
-          <SpoilerMask status={post.status} publishAt={post.publishAt} isLoggedIn={!!user} />
-        )}
+  <>
+    <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.8, color: 'var(--text)', fontSize: '15px' }}>
+      {post.content}
+    </div>
+
+    {/* 리액션 바 */}
+    <ReactionBar
+      postId={id}
+      reactions={post.reactions ?? {}}
+      currentUserId={user?.id ?? null}
+    />
+  </>
+) : (
+  <SpoilerMask status={post.status} publishAt={post.publishAt} isLoggedIn={!!user} />
+)}
 
         {isEditable && (
           <div style={{ marginTop: '32px', paddingTop: '16px', borderTop: '1px solid var(--border)', display: 'flex', gap: '8px' }}>

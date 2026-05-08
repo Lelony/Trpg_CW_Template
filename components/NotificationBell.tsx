@@ -12,9 +12,15 @@ export default function NotificationBell({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  const getLastChecked = () =>
-    localStorage.getItem(`${STORAGE_KEY}_${userId}`) ?? new Date(0).toISOString();
-
+  // 수정 후
+const getLastChecked = () => {
+  const saved = localStorage.getItem(`${STORAGE_KEY}_${userId}`);
+  if (saved) return saved;
+  // 처음 방문이면 지금 시각으로 설정 (이전 알림은 무시)
+  const now = new Date().toISOString();
+  localStorage.setItem(`${STORAGE_KEY}_${userId}`, now);
+  return now;
+};
   const saveLastChecked = () =>
     localStorage.setItem(`${STORAGE_KEY}_${userId}`, new Date().toISOString());
 
@@ -26,23 +32,21 @@ export default function NotificationBell({ userId }: { userId: string }) {
     setLoading(false);
   };
 
-  // 마운트 시 + 60초마다 폴링
-  useEffect(() => {
-    loadNotifications();
-    const interval = setInterval(loadNotifications, 60000);
-    return () => clearInterval(interval);
-  }, []);
+// useEffect 부분 교체
+useEffect(() => {
+  loadNotifications();
+  const interval = setInterval(loadNotifications, 60000);
+  return () => clearInterval(interval);
+}, []); // pathname 의존성 제거
 
-  // 외부 클릭 시 닫기
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
+// visibilitychange만 유지
+useEffect(() => {
+  const handler = () => {
+    if (document.visibilityState === 'visible') loadNotifications();
+  };
+  document.addEventListener('visibilitychange', handler);
+  return () => document.removeEventListener('visibilitychange', handler);
+}, []);
 
   const handleOpen = () => {
     setOpen((prev) => !prev);
@@ -175,7 +179,7 @@ notifications.map((n) => (
       {n.content}
     </p>
     <p style={{ fontSize: '11px', color: 'var(--text-muted)', margin: 0 }}>
-      {new Date(n.createdAt).toLocaleString('ko-KR')}
+      {new Date(n.createdAt).toLocaleDateString('ko-KR')} {new Date(n.createdAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })}
     </p>
   </button>
 ))

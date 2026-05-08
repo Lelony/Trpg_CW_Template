@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
-import { addComment, addReply, deleteComment, deleteReply, generatePostId } from '@/lib/github';
+import { addComment, addReply, deleteComment, deleteReply, editComment, editReply, generatePostId } from '@/lib/github';
 import { z } from 'zod';
 
 const CommentSchema = z.object({
@@ -31,13 +31,14 @@ export async function createComment(postId: string, formData: FormData) {
 
   try {
     await addComment(postId, comment);
+    console.log('✅ revalidatePath 호출:', `/posts/${postId}`); // 추가
     revalidatePath(`/posts/${postId}`);
+    revalidatePath('/');
     return { success: true };
   } catch (e: any) {
     return { error: e.message ?? '댓글 작성에 실패했습니다.' };
   }
 }
-
 export async function createReply(postId: string, commentId: string, formData: FormData) {
   const session = await auth();
   if (!session?.user) return { error: '로그인이 필요합니다.' };
@@ -88,5 +89,39 @@ export async function removeReply(postId: string, commentId: string, replyId: st
     return { success: true };
   } catch (e: any) {
     return { error: e.message ?? '대댓글 삭제에 실패했습니다.' };
+  }
+}
+
+export async function updateComment(postId: string, commentId: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return { error: '로그인이 필요합니다.' };
+
+  const parsed = CommentSchema.safeParse({ content: formData.get('content') });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const user = session.user as any;
+  try {
+    await editComment(postId, commentId, parsed.data.content, user.id);
+    revalidatePath(`/posts/${postId}`);
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message ?? '수정에 실패했습니다.' };
+  }
+}
+
+export async function updateReply(postId: string, commentId: string, replyId: string, formData: FormData) {
+  const session = await auth();
+  if (!session?.user) return { error: '로그인이 필요합니다.' };
+
+  const parsed = CommentSchema.safeParse({ content: formData.get('content') });
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+
+  const user = session.user as any;
+  try {
+    await editReply(postId, commentId, replyId, parsed.data.content, user.id);
+    revalidatePath(`/posts/${postId}`);
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message ?? '수정에 실패했습니다.' };
   }
 }

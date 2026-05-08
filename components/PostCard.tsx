@@ -109,6 +109,19 @@ export default function PostCard({ post, isContentVisible, currentUserId }: {
                 #{tag}
               </span>
             ))}
+            {(() => {
+  const commentCount = (post.comments ?? []).reduce(
+    (acc: number, c: any) => acc + 1 + (c.replies?.length ?? 0), 0
+  );
+  return commentCount > 0 ? (
+    <>
+      <span style={{ color: 'var(--text-muted)' }}>·</span>
+      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+        💬 {commentCount}
+      </span>
+    </>
+  ) : null;
+})()}
           </div>
 
           {/* 본문 미리보기 — 열람 가능할 때만 */}
