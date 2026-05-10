@@ -290,6 +290,14 @@ GitHub 웹에서 **Add file → Create new file**로 만들 수 있어요.
 }
 ```
 
+### `data/bookmarks.json`
+
+북마크 데이터를 저장합니다. 내용은 아래처럼 비어있는 JSON 객체로 만들어주세요.
+
+```json
+{}
+```
+
 ### `content/posts/.gitkeep`
 
 빈 파일을 생성해 폴더를 유지합니다.  
