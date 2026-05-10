@@ -1,14 +1,13 @@
 // app/posts/[id]/page.tsx
 import { notFound } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { getPost } from '@/lib/github';
+import { getPost, getBookmarks } from '@/lib/github';
 import { canViewContent, canEditPost } from '@/lib/permissions';
 import SpoilerMask from '@/components/SpoilerMask';
 import DeleteButton from '@/components/DeleteButton';
 import CommentSection from '@/components/CommentSection';
 import ReactionBar from '@/components/ReactionBar';
 import BookmarkButton from '@/components/BookmarkButton';
-import { getBookmarks } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -17,9 +16,14 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const session = await auth();
   const user = session?.user as any ?? null;
-  const post = await getPost(id);
 
-  if (!post) notFound();
+// getPost와 getBookmarks 병렬 실행
+const [post, { bookmarks }] = await Promise.all([
+  getPost(id),
+  getBookmarks(),
+]);
+
+if (!post) notFound();
 
   const isVisible  = canViewContent(post, user);
   const isEditable = canEditPost(post, user);
@@ -36,7 +40,6 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
   };
 
 const comments = post.comments ?? [];
-const { bookmarks } = await getBookmarks();
 const isBookmarked = user ? (bookmarks[user.id] ?? []).includes(id) : false;
 
   return (

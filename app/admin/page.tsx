@@ -7,6 +7,7 @@ import AddUserForm from '@/components/admin/AddUserForm';
 import SettingsForm from '@/components/admin/SettingsForm';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
 export default async function AdminPage() {
   const session = await auth();

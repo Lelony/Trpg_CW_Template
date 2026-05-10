@@ -1,7 +1,6 @@
 // app/actions/notification.ts
 'use server';
 
-import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
 import { getUnreadComments } from '@/lib/github';
 

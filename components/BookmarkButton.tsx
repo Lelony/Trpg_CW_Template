@@ -4,24 +4,49 @@
 import { useState, useTransition } from 'react';
 import { toggleBookmarkAction } from '@/app/actions/bookmark';
 
-export default function BookmarkButton({ postId, initialBookmarked }: {
+export default function BookmarkButton({ postId, initialBookmarked, compact = false }: {
   postId: string;
   initialBookmarked: boolean;
+  compact?: boolean;
 }) {
   const [isBookmarked, setIsBookmarked] = useState(initialBookmarked);
   const [pending, startTransition]      = useTransition();
 
-  const handleToggle = () => {
-    setIsBookmarked((prev) => !prev); // 낙관적 업데이트
+  const handleToggle = (e: React.MouseEvent) => {
+    e.preventDefault(); // 목록에서 카드 클릭과 구분
+    e.stopPropagation();
+    setIsBookmarked((prev) => !prev);
     startTransition(async () => {
       const res = await toggleBookmarkAction(postId);
       if (res?.error) {
-        setIsBookmarked((prev) => !prev); // 실패 시 롤백
+        setIsBookmarked((prev) => !prev);
       } else if (res?.isBookmarked !== undefined) {
         setIsBookmarked(res.isBookmarked);
       }
     });
   };
+
+  if (compact) {
+    return (
+      <button
+        onClick={handleToggle}
+        disabled={pending}
+        title={isBookmarked ? '북마크 해제' : '북마크 추가'}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: pending ? 'not-allowed' : 'pointer',
+          fontSize: '13px',
+          color: isBookmarked ? 'var(--accent)' : 'var(--text-muted)',
+          padding: '0',
+          opacity: pending ? 0.5 : 1,
+          transition: 'all 0.15s',
+        }}
+      >
+        {isBookmarked ? '★' : '☆'}
+      </button>
+    );
+  }
 
   return (
     <button

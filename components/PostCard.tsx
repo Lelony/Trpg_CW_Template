@@ -1,11 +1,15 @@
 // components/PostCard.tsx
 'use client';
 
-export default function PostCard({ post, isContentVisible, currentUserId }: {
+// 상단 import에 추가
+import BookmarkButton from './BookmarkButton';
+
+export default function PostCard({ post, isContentVisible, currentUserId, isBookmarked }: {
   post: any;
   isContentVisible: boolean;
   currentUserId?: string;
-}) {
+  isBookmarked?: boolean;
+}){
   const statusLabel: Record<string, string> = {
     private:   '秘',
     public:    '公',
@@ -38,36 +42,34 @@ export default function PostCard({ post, isContentVisible, currentUserId }: {
           }}
         >
           {/* 우측 상단 뱃지 */}
-          <div style={{ position: 'absolute', top: '12px', right: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            {/* 내 글 뱃지 */}
-            {post.authorId === currentUserId && (
-              <span style={{
-                fontSize: '10px',
-                padding: '2px 7px',
-                borderRadius: '999px',
-                backgroundColor: 'var(--accent)',
-                color: 'var(--accent-text)',
-                fontWeight: '600',
-                letterSpacing: '0.04em',
-              }}>
-                내 글
-              </span>
-            )}
-            {/* 열람 가능 여부 뱃지 */}
-            <span style={{
-              fontSize: '10px',
-              padding: '2px 7px',
-              borderRadius: '999px',
-              backgroundColor: isContentVisible ? 'var(--accent)' : 'var(--border)',
-              color: isContentVisible ? 'var(--accent-text)' : 'var(--text-muted)',
-              fontWeight: '600',
-              letterSpacing: '0.04em',
-              opacity: isContentVisible ? 0.85 : 1,
-            }}>
-              {isContentVisible ? '열람 가능' : '잠김'}
-            </span>
-          </div>
-
+         <div style={{ position: 'absolute', top: '12px', right: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+  {post.authorId === currentUserId && (
+    <span style={{
+      fontSize: '10px',
+      padding: '2px 7px',
+      borderRadius: '999px',
+      backgroundColor: 'var(--accent)',
+      color: 'var(--accent-text)',
+      fontWeight: '600',
+    }}>
+      내 글
+    </span>
+  )}
+  {currentUserId && (
+    <BookmarkButton postId={post.id} initialBookmarked={isBookmarked ?? false} compact />
+  )}
+  <span style={{
+    fontSize: '10px',
+    padding: '2px 7px',
+    borderRadius: '999px',
+    backgroundColor: isContentVisible ? 'var(--accent)' : 'var(--border)',
+    color: isContentVisible ? 'var(--accent-text)' : 'var(--text-muted)',
+    fontWeight: '600',
+    opacity: isContentVisible ? 0.85 : 1,
+  }}>
+    {isContentVisible ? '열람 가능' : '잠김'}
+  </span>
+</div>
           {/* 제목 행 */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', paddingRight: '80px' }}>
             <span style={{
@@ -149,7 +151,7 @@ export default function PostCard({ post, isContentVisible, currentUserId }: {
               fontStyle: 'italic',
             }}>
               {post.status === 'timed' && post.publishAt
-                ? `${new Date(post.publishAt).toLocaleString('ko-KR')} 이후 공개`
+                ? `${new Date(post.publishAt).toLocaleDateString('ko-KR')} ${new Date(post.publishAt).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false })} 이후 공개`
                 : '열람 권한이 없습니다.'}
             </p>
           )}

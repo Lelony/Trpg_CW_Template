@@ -4,7 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { generatePostId, createFile, getPost, updateFile, deleteFile } from '@/lib/github';
+import { generatePostId, createFile, getPost, updateFile, deleteFile, addToIndex, updateIndexEntry, removeFromIndex } from '@/lib/github';
 import { PostSchema } from '@/lib/schemas';
 import { canEditPost } from '@/lib/permissions';
 
@@ -15,7 +15,7 @@ function parseFormData(formData: FormData) {
     status:       formData.get('status')    as string,
     publishAt:    formData.get('publishAt') as string || undefined,
     tags: (formData.get('tags') as string)
-  ?.split(',').map((t) => t.trim().replace(/^#+/, '')).filter(Boolean) ?? [],
+      ?.split(',').map((t) => t.trim().replace(/^#+/, '')).filter(Boolean) ?? [],
     allowedUsers: (formData.get('allowedUsers') as string)
       ?.split(',').map((u) => u.trim()).filter(Boolean) ?? [],
   };
@@ -42,11 +42,18 @@ export async function createPost(formData: FormData) {
     updatedAt:  now,
   };
 
+  // 게시글 저장 + 인덱스 업데이트 (순서 중요: 게시글 먼저)
   await createFile(
     `content/posts/${id}.json`,
     JSON.stringify(post, null, 2),
     `feat: add post "${post.title}" by ${user.id}`,
   );
+
+  try {
+    await addToIndex(post);
+  } catch (e) {
+    console.error('인덱스 업데이트 실패 (게시글은 저장됨):', e);
+  }
 
   revalidatePath('/');
   redirect(`/posts/${id}`);
@@ -79,6 +86,19 @@ export async function updatePost(id: string, sha: string, formData: FormData) {
     `fix: update post "${updated.title}" by ${user.id}`,
   );
 
+  try {
+    await updateIndexEntry(id, {
+      title:        updated.title,
+      status:       updated.status,
+      tags:         updated.tags ?? [],
+      allowedUsers: updated.allowedUsers ?? [],
+      publishAt:    updated.publishAt ?? null,
+      updatedAt:    updated.updatedAt,
+    });
+  } catch (e) {
+    console.error('인덱스 업데이트 실패 (게시글은 수정됨):', e);
+  }
+
   revalidatePath('/');
   revalidatePath(`/posts/${id}`);
   redirect(`/posts/${id}`);
@@ -99,6 +119,12 @@ export async function deletePost(id: string, sha: string) {
     sha,
     `delete: post "${existing.title}" by ${user.id}`,
   );
+
+  try {
+    await removeFromIndex(id);
+  } catch (e) {
+    console.error('인덱스 업데이트 실패 (게시글은 삭제됨):', e);
+  }
 
   revalidatePath('/');
   redirect('/');

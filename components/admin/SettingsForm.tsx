@@ -1,7 +1,7 @@
 // components/admin/SettingsForm.tsx
 'use client';
 
-import { useState, useTransition, useEffect, useRef } from 'react';
+import { useState, useTransition} from 'react';
 import { updateSettings } from '@/app/actions/settings';
 
 const inputStyle = {

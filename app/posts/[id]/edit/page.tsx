@@ -6,6 +6,7 @@ import { canEditPost } from '@/lib/permissions';
 import EditForm from '@/components/EditForm';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store'; // 추가
 
 export default async function EditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

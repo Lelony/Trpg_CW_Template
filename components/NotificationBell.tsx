@@ -32,14 +32,12 @@ const getLastChecked = () => {
     setLoading(false);
   };
 
-// useEffect 부분 교체
+// 마운트 시 1회
 useEffect(() => {
   loadNotifications();
-  const interval = setInterval(loadNotifications, 60000);
-  return () => clearInterval(interval);
-}, []); // pathname 의존성 제거
+}, []);
 
-// visibilitychange만 유지
+// 탭 포커스 시 갱신
 useEffect(() => {
   const handler = () => {
     if (document.visibilityState === 'visible') loadNotifications();
@@ -48,9 +46,34 @@ useEffect(() => {
   return () => document.removeEventListener('visibilitychange', handler);
 }, []);
 
-  const handleOpen = () => {
-    setOpen((prev) => !prev);
+
+const handleOpen = () => {
+  setOpen((prev) => !prev);
+};
+
+// 드롭다운 열릴 때 — 캐시 즉시 보여주고 백그라운드 갱신
+useEffect(() => {
+  if (!open) return;
+  if (notifications.length === 0) {
+    loadNotifications();
+  } else {
+    const lastChecked = localStorage.getItem(`${STORAGE_KEY}_${userId}`) ?? new Date().toISOString();
+    fetchNotifications(lastChecked).then((res) => {
+      setNotifications(res.notifications ?? []);
+    });
+  }
+}, [open]);
+
+// 외부 클릭 시 닫기
+useEffect(() => {
+  const handler = (e: MouseEvent) => {
+    if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      setOpen(false);
+    }
   };
+  document.addEventListener('mousedown', handler);
+  return () => document.removeEventListener('mousedown', handler);
+}, []);
 
   const handleRead = (postId: string) => {
     saveLastChecked();

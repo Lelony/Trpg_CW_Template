@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { auth } from '@/lib/auth';
-import { addComment, addReply, deleteComment, deleteReply, editComment, editReply, generatePostId } from '@/lib/github';
+import { addComment, addReply, deleteComment, deleteReply, editComment, editReply, generatePostId, updateCommentCount } from '@/lib/github';
 import { z } from 'zod';
 
 const CommentSchema = z.object({
@@ -31,14 +31,14 @@ export async function createComment(postId: string, formData: FormData) {
 
   try {
     await addComment(postId, comment);
-    console.log('✅ revalidatePath 호출:', `/posts/${postId}`); // 추가
     revalidatePath(`/posts/${postId}`);
-    revalidatePath('/');
+    try { await updateCommentCount(postId, 1); } catch {}
     return { success: true };
   } catch (e: any) {
     return { error: e.message ?? '댓글 작성에 실패했습니다.' };
   }
 }
+
 export async function createReply(postId: string, commentId: string, formData: FormData) {
   const session = await auth();
   if (!session?.user) return { error: '로그인이 필요합니다.' };
@@ -58,6 +58,7 @@ export async function createReply(postId: string, commentId: string, formData: F
   try {
     await addReply(postId, commentId, reply);
     revalidatePath(`/posts/${postId}`);
+    try { await updateCommentCount(postId, 1); } catch {}
     return { success: true };
   } catch (e: any) {
     return { error: e.message ?? '대댓글 작성에 실패했습니다.' };
@@ -72,6 +73,7 @@ export async function removeComment(postId: string, commentId: string) {
   try {
     await deleteComment(postId, commentId, user.role === 'admin' ? '__admin__' : user.id);
     revalidatePath(`/posts/${postId}`);
+    try { await updateCommentCount(postId, -1); } catch {}
     return { success: true };
   } catch (e: any) {
     return { error: e.message ?? '댓글 삭제에 실패했습니다.' };
@@ -86,6 +88,7 @@ export async function removeReply(postId: string, commentId: string, replyId: st
   try {
     await deleteReply(postId, commentId, replyId, user.role === 'admin' ? '__admin__' : user.id);
     revalidatePath(`/posts/${postId}`);
+    try { await updateCommentCount(postId, -1); } catch {}
     return { success: true };
   } catch (e: any) {
     return { error: e.message ?? '대댓글 삭제에 실패했습니다.' };

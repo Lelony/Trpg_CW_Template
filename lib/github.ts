@@ -71,16 +71,29 @@ export async function listFiles(dirPath: string): Promise<string[]> {
 }
 
 // 모든 게시글 로드 (목록 페이지용)
+// lib/github.ts - getAllPosts 교체
 export async function getAllPosts() {
   const paths = await listFiles('content/posts');
-  const posts = await Promise.all(
-    paths.map(async (path) => {
-      const file = await getFile(path);
-      if (!file) return null;
-      return JSON.parse(file.content);
-    }),
-  );
-  return posts
+
+  // 한번에 10개씩만 병렬 처리
+  const results: any[] = [];
+  for (let i = 0; i < paths.length; i += 10) {
+    const chunk = paths.slice(i, i + 10);
+    const chunkResults = await Promise.all(
+      chunk.map(async (path) => {
+        try {
+          const file = await getFile(path);
+          if (!file) return null;
+          return JSON.parse(file.content);
+        } catch {
+          return null;
+        }
+      })
+    );
+    results.push(...chunkResults);
+  }
+
+  return results
     .filter(Boolean)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }
@@ -276,9 +289,13 @@ export async function getUnreadComments(userId: string, lastChecked: string) {
 
 
 export async function getSettings() {
-  const file = await getFile('data/settings.json');
-  if (!file) return null;
-  return JSON.parse(file.content);
+  try {
+    const file = await getFile('data/settings.json');
+    if (!file) return null;
+    return JSON.parse(file.content);
+  } catch {
+    return null;
+  }
 }
 
 export async function saveSettings(settings: any) {
@@ -352,11 +369,9 @@ export async function toggleReaction(postId: string, userId: string, emoji: stri
 
   // 각 이모지별로 userId 배열 관리
   // { '👍': ['user1', 'user2'], '❤️': ['user3'] }
-  // toggleReaction 함수 안의 EMOJIS 배열 교체
-const EMOJIS = ['👍', '❤️', '😮', '😂', '😢', '😡', '🔥', '👀', '🎉', '💀'];
 
   // 현재 내가 누른 이모지 찾기
-  const currentEmoji = EMOJIS.find((e) => post.reactions[e]?.includes(userId));
+  const currentEmoji = REACTION_EMOJIS.find((e) => post.reactions[e]?.includes(userId));
 
   // 같은 걸 다시 누르면 취소
   if (currentEmoji === emoji) {
@@ -382,7 +397,6 @@ const EMOJIS = ['👍', '❤️', '😮', '😂', '😢', '😡', '🔥', '👀'
 }
 
 // lib/github.ts 맨 아래에 추가
-
 const REACTION_EMOJIS = ['👍', '❤️', '😮', '😂', '😢', '😡', '🔥', '👀', '🎉', '💀'];
 
 export async function toggleCommentReaction(
@@ -517,4 +531,104 @@ export async function toggleBookmark(userId: string, postId: string, retries = 3
     }
   }
   throw new Error('북마크 처리에 실패했습니다.');
+}
+
+// lib/github.ts 맨 아래에 추가
+
+// 인덱스 파일 읽기
+export async function getIndex() {
+  const file = await getFile('data/index.json');
+  if (!file) return { index: [], sha: '' };
+  return { index: JSON.parse(file.content), sha: file.sha };
+}
+
+// 인덱스 업데이트 (충돌 시 최대 5회 재시도)
+export async function updateIndex(
+  updater: (index: any[]) => any[],
+  retries = 5,
+) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const file = await getFile('data/index.json');
+      if (!file) throw new Error('index.json을 찾을 수 없습니다.');
+
+      const index = JSON.parse(file.content);
+      const updated = updater(index);
+
+      await updateFile(
+        'data/index.json',
+        JSON.stringify(updated, null, 2),
+        file.sha,
+        'chore: update index.json',
+      );
+      return;
+    } catch (err: any) {
+      if (err.status === 409 && i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('인덱스 업데이트에 실패했습니다.');
+}
+
+// 인덱스에 게시글 추가
+export async function addToIndex(post: any) {
+  await updateIndex((index) => {
+    const entry = {
+      id:           post.id,
+      title:        post.title,
+      authorId:     post.authorId,
+      authorName:   post.authorName,
+      status:       post.status,
+      tags:         post.tags ?? [],
+      allowedUsers: post.allowedUsers ?? [],
+      publishAt:    post.publishAt ?? null,
+      createdAt:    post.createdAt,
+      updatedAt:    post.updatedAt,
+      commentCount: 0,
+    };
+    return [entry, ...index];
+  });
+}
+
+// 인덱스에서 게시글 수정
+export async function updateIndexEntry(postId: string, updates: Partial<any>) {
+  await updateIndex((index) =>
+    index.map((entry) =>
+      entry.id === postId ? { ...entry, ...updates } : entry
+    )
+  );
+}
+
+// 인덱스에서 게시글 삭제
+export async function removeFromIndex(postId: string) {
+  await updateIndex((index) =>
+    index.filter((entry) => entry.id !== postId)
+  );
+}
+
+// 인덱스에서 댓글 수 업데이트
+export async function updateCommentCount(postId: string, delta: number) {
+  await updateIndex((index) =>
+    index.map((entry) =>
+      entry.id === postId
+        ? { ...entry, commentCount: Math.max(0, (entry.commentCount ?? 0) + delta) }
+        : entry
+    )
+  );
+}
+
+// 인덱스 기반 게시글 목록 조회 (페이지네이션)
+export async function getPostsFromIndex(page: number, limit = 30) {
+  const { index } = await getIndex();
+  const sorted = index.sort(
+    (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  const total = sorted.length;
+  const totalPages = Math.ceil(total / limit);
+  const pagePosts = sorted.slice((page - 1) * limit, page * limit);
+
+  return { posts: pagePosts, total, totalPages };
 }

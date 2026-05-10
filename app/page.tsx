@@ -1,20 +1,28 @@
 // app/page.tsx
 import { auth } from '@/lib/auth';
-import { getAllPosts } from '@/lib/github';
+import { getPostsFromIndex, getBookmarks } from '@/lib/github';
 import { canViewContent } from '@/lib/permissions';
 import PostList from '@/components/PostList';
 
 export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const { page: pageParam } = await searchParams;
+  const page = parseInt(pageParam ?? '1', 10);
+
   const session = await auth();
   const user = session?.user as any ?? null;
-  const posts = await getAllPosts();
 
-  // 서버에서 권한 체크 후 _isVisible 필드 추가
+  const [{ posts, total, totalPages }, { bookmarks }] = await Promise.all([
+    getPostsFromIndex(page),
+    user ? getBookmarks() : Promise.resolve({ bookmarks: {} }),
+  ]);
+
   const postsWithVisibility = posts.map((post: any) => ({
     ...post,
     _isVisible: canViewContent(post, user),
+    _isBookmarked: user ? (bookmarks[user.id] ?? []).includes(post.id) : false,
   }));
 
   return (
@@ -42,6 +50,9 @@ export default async function HomePage() {
       <PostList
         posts={postsWithVisibility}
         currentUserId={user?.id}
+        currentPage={page}
+        totalPages={totalPages}
+        total={total}
       />
     </main>
   );
