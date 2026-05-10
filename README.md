@@ -37,9 +37,11 @@
   - [방법 B — 브라우저에서 단계별 배포](#방법-b--브라우저에서-단계별-배포)
   - [방법 C — 로컬 개발 환경에서 배포](#방법-c--로컬-개발-환경에서-배포)
 - [초기 데이터 파일 생성](#초기-데이터-파일-생성)
+- [기존 게시글 인덱스 초기화](#기존-게시글-인덱스-초기화)
 - [환경변수 목록](#환경변수-목록)
 - [관리자 설정 가이드](#관리자-설정-가이드)
 - [사용자 안내](#사용자-안내)
+- [성능 안내](#성능-안내)
 - [주의사항](#주의사항)
 
 ---
@@ -50,7 +52,9 @@
 - **권한 시스템** — 관리자 / 중재자 / 일반 유저 3단계
 - **댓글 · 답글** — 열람 권한이 있는 유저만 작성 가능, @멘션 지원
 - **댓글 알림** — 내 게시글 댓글 / 내 댓글 답글 / @멘션 알림
-- **게시글 검색 / 필터** — 제목 검색, 태그별 · 작성자별 필터, 30개 단위 페이지네이션
+- **북마크** — 나중에 읽을 게시글 저장, 북마크 목록 페이지 제공
+- **리액션** — 게시글 · 댓글 · 답글에 이모지 리액션 (1인 1리액션)
+- **게시글 검색 / 필터** — 제목 검색, 태그별 · 작성자별 필터, 30개 단위 서버 사이드 페이지네이션
 - **테마 전환** — 다크 모드 / 라이트 모드 (관리자가 색상 커스터마이징 가능)
 - **사이트 설정** — 관리자 패널에서 사이트 이름, 설명, 색상 등 코드 없이 변경 가능
 
@@ -95,7 +99,7 @@
 
 아래 버튼 하나로 **레포 복사 + Vercel 배포가 동시에** 진행돼요.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Lelony/Trpg_CW_Template&env=GITHUB_PAT,GITHUB_REPO_OWNER,GITHUB_REPO_NAME,NEXTAUTH_SECRET,NEXTAUTH_URL&envDescription=환경변수%20설정%20가이드를%20참고하세요&envLink=https://github.com/Lelony/Trpg_CW_Template%23환경변수-목록)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/본인계정/코드레포이름&env=GITHUB_PAT,GITHUB_REPO_OWNER,GITHUB_REPO_NAME,NEXTAUTH_SECRET,NEXTAUTH_URL&envDescription=환경변수%20설정%20가이드를%20참고하세요&envLink=https://github.com/본인계정/코드레포이름%23환경변수-목록)
 
 > ⚠️ 버튼을 클릭하기 전에 **데이터 레포 생성**, **초기 파일 생성**, **GitHub PAT 발급**을 먼저 완료해주세요.
 
@@ -292,16 +296,114 @@ GitHub 웹에서 **Add file → Create new file**로 만들 수 있어요.
 
 ### `data/bookmarks.json`
 
-북마크 데이터를 저장합니다. 내용은 아래처럼 비어있는 JSON 객체로 만들어주세요.
+북마크 데이터를 저장합니다.
 
 ```json
 {}
 ```
 
+### `data/index.json`
+
+게시글 목록 고속 조회를 위한 인덱스 파일입니다. 처음에는 빈 배열로 시작하세요.
+
+```json
+[]
+```
+
+> ⚠️ 기존에 게시글이 있다면 아래 [기존 게시글 인덱스 초기화](#기존-게시글-인덱스-초기화) 섹션을 참고하세요.
+
 ### `content/posts/.gitkeep`
 
 빈 파일을 생성해 폴더를 유지합니다.  
 파일명에 `content/posts/.gitkeep`을 입력하면 폴더가 자동 생성돼요. 내용은 비워두세요.
+
+---
+
+## 기존 게시글 인덱스 초기화
+
+이미 게시글이 있는 상태에서 처음 도입하는 경우, 기존 게시글을 인덱스에 반영해야 해요.  
+로컬 개발 환경(방법 C)에서 아래 스크립트를 실행해주세요.
+
+#### 1단계 — 스크립트 파일 생성
+
+프로젝트 루트에 `build-index.mjs` 파일을 만들고 아래 내용을 붙여넣으세요.
+
+```js
+// build-index.mjs
+import { Octokit } from '@octokit/rest';
+import { readFileSync, writeFileSync } from 'fs';
+
+const envFile = readFileSync('.env.local', 'utf-8');
+const env = Object.fromEntries(
+  envFile.split('\n')
+    .filter(line => line.includes('='))
+    .map(line => {
+      const idx = line.indexOf('=');
+      return [line.slice(0, idx).trim(), line.slice(idx + 1).trim()];
+    })
+);
+
+const octokit = new Octokit({ auth: env.GITHUB_PAT });
+const OWNER = env.GITHUB_REPO_OWNER;
+const REPO  = env.GITHUB_REPO_NAME;
+
+async function buildIndex() {
+  const { data } = await octokit.repos.getContent({
+    owner: OWNER, repo: REPO, path: 'content/posts',
+  });
+
+  const posts = await Promise.all(
+    data.filter(f => f.name.endsWith('.json')).map(async (f) => {
+      const { data: file } = await octokit.repos.getContent({
+        owner: OWNER, repo: REPO, path: f.path,
+      });
+      const content = JSON.parse(Buffer.from(file.content, 'base64').toString());
+      return {
+        id:           content.id,
+        title:        content.title,
+        authorId:     content.authorId,
+        authorName:   content.authorName,
+        status:       content.status,
+        tags:         content.tags ?? [],
+        allowedUsers: content.allowedUsers ?? [],
+        publishAt:    content.publishAt ?? null,
+        createdAt:    content.createdAt,
+        updatedAt:    content.updatedAt,
+        commentCount: (content.comments ?? []).reduce(
+          (acc, c) => acc + 1 + (c.replies?.length ?? 0), 0
+        ),
+      };
+    })
+  );
+
+  const sorted = posts.sort((a, b) =>
+    new Date(b.createdAt) - new Date(a.createdAt)
+  );
+
+  writeFileSync('index_output.json', JSON.stringify(sorted, null, 2), 'utf-8');
+  console.log('완료! index_output.json 파일을 확인하세요.');
+}
+
+buildIndex().catch(console.error);
+```
+
+#### 2단계 — 스크립트 실행
+
+```bash
+node build-index.mjs
+```
+
+#### 3단계 — 결과 반영
+
+생성된 `index_output.json` 내용을 데이터 레포의 `data/index.json`에 붙여넣고 저장하세요.
+
+#### 4단계 — 파일 정리
+
+```bash
+# 스크립트와 결과 파일 삭제
+rm build-index.mjs
+rm index_output.json
+```
 
 ---
 
@@ -369,10 +471,25 @@ GitHub 웹에서 **Add file → Create new file**로 만들 수 있어요.
 
 ---
 
+## 성능 안내
+
+이 프로젝트는 `data/index.json`을 이용한 서버 사이드 페이지네이션으로 게시글이 늘어나도 메인 페이지 로딩 속도를 일정하게 유지합니다.
+
+| 게시글 수 | 예상 성능 |
+|---|---|
+| ~50개 | 빠름 |
+| 50~200개 | 양호 (인덱스 덕분에 메인 페이지는 빠름) |
+| 200개 이상 | 메인 페이지는 빠르지만 상세 페이지 로딩은 GitHub API 속도에 의존 |
+
+> 게시글 작성 · 수정 · 삭제 시 `data/index.json`이 자동으로 동기화됩니다.  
+> 동시 작성 시 충돌이 발생해도 최대 5회 자동 재시도로 처리됩니다.
+
+---
+
 ## 주의사항
 
-- 이 프로젝트는 **소규모 운영**을 전제로 합니다. 게시글 수가 많아지면 GitHub API 호출 속도가 느려질 수 있습니다.
+- 이 프로젝트는 **소규모 운영**을 전제로 합니다.
 - GitHub API는 인증된 요청 기준 **시간당 5,000회** 제한이 있습니다.
 - 데이터 레포는 반드시 **Private**으로 유지하세요.
 - `GITHUB_PAT`는 절대 외부에 노출하지 마세요.
-- 동시에 여러 명이 같은 게시글에 댓글을 작성할 경우 드물게 충돌이 발생할 수 있습니다. (SHA 기반 낙관적 동시성 제어로 최소화되어 있습니다.)
+- 동시에 여러 명이 게시글을 작성할 경우 드물게 충돌이 발생할 수 있습니다. (자동 재시도로 최소화되어 있습니다.)
