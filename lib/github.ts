@@ -473,3 +473,48 @@ export async function editReply(postId: string, commentId: string, replyId: stri
     `comment: edit reply in "${post.title}" by ${userId}`,
   );
 }
+
+// lib/github.ts 맨 아래에 추가
+
+export async function getBookmarks() {
+  const file = await getFile('data/bookmarks.json');
+  if (!file) return { bookmarks: {}, sha: '' };
+  return { bookmarks: JSON.parse(file.content), sha: file.sha };
+}
+
+export async function toggleBookmark(userId: string, postId: string, retries = 3): Promise<boolean> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const file = await getFile('data/bookmarks.json');
+      if (!file) throw new Error('bookmarks.json을 찾을 수 없습니다.');
+
+      const bookmarks = JSON.parse(file.content);
+      if (!bookmarks[userId]) bookmarks[userId] = [];
+
+      const isBookmarked = bookmarks[userId].includes(postId);
+
+      if (isBookmarked) {
+        bookmarks[userId] = bookmarks[userId].filter((id: string) => id !== postId);
+      } else {
+        bookmarks[userId].push(postId);
+      }
+
+      await updateFile(
+        'data/bookmarks.json',
+        JSON.stringify(bookmarks, null, 2),
+        file.sha,
+        `bookmark: ${userId} ${isBookmarked ? 'removed' : 'added'} ${postId}`,
+      );
+
+      return !isBookmarked; // 북마크 추가면 true, 제거면 false
+    } catch (err: any) {
+      // 409 충돌 시 재시도
+      if (err.status === 409 && i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 300 * (i + 1)));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('북마크 처리에 실패했습니다.');
+}

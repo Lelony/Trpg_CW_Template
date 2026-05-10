@@ -29,8 +29,8 @@ export default function Header({ settings }: { settings: any }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <ThemeToggle
-          shinobiName={settings?.shinobiModeName ?? '시노비 모드'}
-          snsName={settings?.snsModeName ?? 'SNS 모드'}
+          shinobiName={settings?.shinobiModeName ?? '다크 모드'}
+          snsName={settings?.snsModeName ?? '라이트 모드'}
         />
         <a href="/help" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
           사용 안내
@@ -38,9 +38,12 @@ export default function Header({ settings }: { settings: any }) {
         {user ? (
           <>
             <NotificationBell userId={user.id} />
-            <a href="/mypage" style={{ fontSize: '13px', color: 'var(--text-sub)' }}>
-              {user.name}
-            </a>
+            <a href="/mypage" style={{ fontSize: '13px', color: 'var(--text-sub)', letterSpacing: '0.04em' }}>
+  {user.name}
+</a>
+<a href="/bookmarks" style={{ fontSize: '13px', color: 'var(--text-sub)' }}>
+  북마크
+</a>
             {user.role === 'admin' && (
               <a href="/admin" style={{ fontSize: '13px', color: 'var(--text-sub)' }}>
                 관리자

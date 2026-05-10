@@ -7,6 +7,8 @@ import SpoilerMask from '@/components/SpoilerMask';
 import DeleteButton from '@/components/DeleteButton';
 import CommentSection from '@/components/CommentSection';
 import ReactionBar from '@/components/ReactionBar';
+import BookmarkButton from '@/components/BookmarkButton';
+import { getBookmarks } from '@/lib/github';
 
 export const dynamic = 'force-dynamic';
 export const fetchCache = 'force-no-store';
@@ -33,7 +35,9 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
     selective: '[지정 공개]',
   };
 
-  const comments = post.comments ?? [];
+const comments = post.comments ?? [];
+const { bookmarks } = await getBookmarks();
+const isBookmarked = user ? (bookmarks[user.id] ?? []).includes(id) : false;
 
   return (
     <main style={{ minHeight: '100vh', backgroundColor: 'var(--bg)', padding: '24px', maxWidth: '768px', margin: '0 auto' }}>
@@ -43,14 +47,19 @@ export default async function PostDetailPage({ params }: { params: Promise<{ id:
 
       <div style={{ backgroundColor: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '12px', padding: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', marginBottom: '12px' }}>
-          <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-title)', letterSpacing: 'var(--letter-spacing)' }}>
-            {post.title}
-          </h1>
-          <span style={{ flexShrink: 0, fontSize: '12px', padding: '3px 10px', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--text-sub)', whiteSpace: 'nowrap' }}>
-            {statusLabel[post.status] ?? '[비공개]'}
-            {publishDate && <span style={{ display: 'block', fontSize: '10px', marginTop: '2px' }}>{publishDate}</span>}
-          </span>
-        </div>
+  <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: 'var(--text)', margin: 0, lineHeight: 1.4, fontFamily: 'var(--font-title)', letterSpacing: 'var(--letter-spacing)' }}>
+    {post.title}
+  </h1>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+    {user && (
+      <BookmarkButton postId={id} initialBookmarked={isBookmarked} />
+    )}
+    <span style={{ fontSize: '12px', padding: '3px 10px', borderRadius: '999px', border: '1px solid var(--border)', color: 'var(--text-sub)', whiteSpace: 'nowrap' }}>
+      {statusLabel[post.status] ?? '[비공개]'}
+      {publishDate && <span style={{ display: 'block', fontSize: '10px', marginTop: '2px' }}>{publishDate}</span>}
+    </span>
+  </div>
+</div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'var(--text-sub)', marginBottom: '24px', flexWrap: 'wrap' }}>
           <span>{post.authorName}</span>
